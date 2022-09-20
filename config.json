@@ -1,0 +1,23 @@
+{
+  "client": {
+    "listenIP": "0.0.0.0",
+    "listenPort": 5070,
+    "transport": "UDP",
+    "portSharedMode": true,
+    "parentIP": "192.168.8.216",
+    "parentPort": 5060,
+    "parentId": "34020000002000000001",
+    "password": "12345678",
+    "count": 1000,
+    "heartbeat": 60,
+    "registerExpires": 3600,
+    "activeAlarmInterval": 5,
+    "sleep": 0
+  },
+  "server": {
+    "listenIP": "192.168.8.217",
+    "listenPort": 5060,
+    "sipId": "34020000002000000001",
+    "password": "12345678"
+  }
+}
