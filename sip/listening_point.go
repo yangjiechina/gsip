@@ -182,9 +182,9 @@ func (l *ListeningPoint) newServerTransaction(request *Request, hop *Hop, conn n
 	tcp := request.GetTransport() == TCP
 	invite := request.cSeq.Method == INVITE
 	if invite {
-		stateMachine = &UnInviteServerStateMachine{StateMachine: StateMachine{isTcp: tcp}}
-	} else {
 		stateMachine = &InviteServerStateMachine{StateMachine: StateMachine{isTcp: tcp}}
+	} else {
+		stateMachine = &UnInviteServerStateMachine{StateMachine: StateMachine{isTcp: tcp}}
 	}
 
 	serverTransaction := &ServerTransaction{
