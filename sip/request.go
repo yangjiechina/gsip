@@ -62,7 +62,11 @@ func (r *Request) CheckHeaders() error {
 	line := r.GetRequestLine()
 
 	if line.Method != r.cSeq.Method {
-		return fmt.Errorf("CSEQ method mismatch with Request-Line")
+		return fmt.Errorf("the CSEQ header method mismatch with Request-Line")
+	}
+
+	if isDialogCreated(r.cSeq.Method) && r.Contact() == nil {
+		return fmt.Errorf("the %s requests MUST contain a Contact header", r.cSeq.Method)
 	}
 
 	if line.Method == SUBSCRIBE {
@@ -71,7 +75,7 @@ func (r *Request) CheckHeaders() error {
 		}
 	} else if line.Method == NOTIFY {
 		if header := r.GetHeader(SubscriptionStateName); header == nil {
-			return fmt.Errorf("NOTIFY requests MUST contain a Subscription-State header")
+			return fmt.Errorf("the NOTIFY requests MUST contain a Subscription-State header")
 		}
 	}
 

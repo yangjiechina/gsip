@@ -16,6 +16,7 @@ type ListeningPoint struct {
 	transport   ITransport
 	sipStack    *Stack
 	tcpSessions *SafeMap
+	contact     *Contact
 }
 
 func (l *ListeningPoint) CreateViaHeader() *Via {
@@ -48,6 +49,10 @@ func (l *ListeningPoint) onPacket(conn net.Conn, tcp bool, data []byte, length i
 	}
 }
 
+func (l *ListeningPoint) SetGlobalContact(contact *Contact) {
+	l.contact = contact
+}
+
 func (l *ListeningPoint) getConn(hop *Hop) (net.Conn, error) {
 	if hop.Transport != strings.ToUpper(l.Transport) {
 		panic("not find conn")
@@ -70,7 +75,7 @@ func (l *ListeningPoint) getConn(hop *Hop) (net.Conn, error) {
 }
 
 func (l *ListeningPoint) NewClientTransaction(request *Request) (*ClientTransaction, error) {
-	return l.NewClientTransactionWithTimeout(request, l.sipStack.Option.RequestTimeout)
+	return l.NewClientTransactionWithTimeout(request, l.sipStack.Options.RequestTimeout)
 }
 
 func (l *ListeningPoint) NewClientTransactionWithTimeout(request *Request, requestTimeout time.Duration) (*ClientTransaction, error) {
@@ -196,6 +201,7 @@ func (l *ListeningPoint) newServerTransaction(request *Request, hop *Hop, conn n
 			hop:             hop,
 			conn:            conn,
 			sipStack:        l.sipStack,
+			listeningPoint:  l,
 		},
 	}
 
@@ -232,8 +238,8 @@ func (l *ListeningPoint) NewRequestMessage(method string, requestUri *SipUri, fr
 		request.SetHeader(defaultContentLengthHeader.Clone())
 	}
 
-	if l.sipStack.Option.UserAgent != "" {
-		request.SetUserAgent(l.sipStack.Option.UserAgent)
+	if l.sipStack.Options.UserAgent != "" {
+		request.SetUserAgent(l.sipStack.Options.UserAgent)
 	}
 
 	request.SetHeader(defaultMaxForwardsHeader.Clone())

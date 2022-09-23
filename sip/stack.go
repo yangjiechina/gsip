@@ -20,8 +20,8 @@ type OnFailure func(err *UACError)
 
 type OnSuccess func(event *ResponseEvent)
 
-// Option Sip stack 的全局参数
-type Option struct {
+// Options Sip stack 的全局参数
+type Options struct {
 	/**
 	预计有多少事务用户
 	*/
@@ -42,7 +42,7 @@ type Stack struct {
 
 	EventListener    EventListener
 	EventInterceptor EventInterceptor
-	Option           Option
+	Options          Options
 
 	clientTransactions *SafeMap
 	serverTransactions *SafeMap

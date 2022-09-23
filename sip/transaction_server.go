@@ -15,6 +15,13 @@ func (t *ServerTransaction) sendProvisionalResponse(response *Response) {
 }
 
 func (t *ServerTransaction) SendResponse(response *Response) {
+	if isDialogCreated(response.cSeq.Method) && response.Contact() == nil && t.listeningPoint.contact != nil {
+		response.SetHeader(t.listeningPoint.contact)
+	}
+	if err := response.CheckHeaders(); err != nil {
+		panic(err)
+	}
+
 	cSeqHeader := response.CSeq()
 	toHeader := response.To()
 	var dialog *Dialog

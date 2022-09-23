@@ -179,8 +179,8 @@ func (r *Response) CheckHeaders() error {
 		return fmt.Errorf("the subscribe respsone must contain an expires header")
 	}
 
-	if r.cSeq.Method == INVITE && r.GetStatusCode() == OK && r.Contact() == nil {
-		return fmt.Errorf("the UAS MUST add a Contact header field to the response")
+	if isDialogCreated(r.cSeq.Method) && r.GetStatusCode() == OK && r.Contact() == nil {
+		return fmt.Errorf("the %s response MUST contain a Contact header", r.cSeq.Method)
 	}
 
 	return nil

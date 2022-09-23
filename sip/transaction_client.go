@@ -158,8 +158,9 @@ func (t *ClientTransaction) Execute() (response *ResponseEvent, err error) {
 }
 
 func (t *ClientTransaction) SendRequest(onSuccess OnSuccess, onFailure OnFailure) {
-	//通讯层发送消息
-	//启动状态机
+	if isDialogCreated(t.originalRequest.cSeq.Method) && t.originalRequest.Contact() == nil && t.listeningPoint.contact != nil {
+		t.originalRequest.SetHeader(t.listeningPoint.contact)
+	}
 	if err := t.originalRequest.CheckHeaders(); err != nil {
 		panic(err)
 	}
