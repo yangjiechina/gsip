@@ -36,6 +36,8 @@ type Message interface {
 	setBody(body []byte)
 	setRemoteHostPort(ip string, port int)
 	GetRemoteHostPort() (string, int)
+	GetLocalHostPort() (ip string, port int)
+	setLocalHostPort(ip string, port int)
 }
 
 type message struct {
@@ -56,6 +58,9 @@ type message struct {
 
 	remoteIP   string
 	remotePort int
+
+	localIP   string
+	localPort int
 }
 
 func (m *message) writeToBuffer2(buffer *bytes.Buffer, header Header) {
@@ -328,6 +333,15 @@ func (m *message) SetUserAgent(agent string) {
 	}
 }
 
+func (m *message) GetLocalHostPort() (ip string, port int) {
+	return m.localIP, m.localPort
+}
+
+func (m *message) setLocalHostPort(ip string, port int) {
+	m.localIP = ip
+	m.localPort = port
+}
+
 func processMessage(listeningPoint *ListeningPoint, stack *Stack, conn net.Conn, tcp bool, data []byte, length int) error {
 	msg, isRequest, err := parseMessage(data, length)
 	if err != nil {
@@ -340,6 +354,7 @@ func processMessage(listeningPoint *ListeningPoint, stack *Stack, conn net.Conn,
 
 	hop := getHostPort(conn.RemoteAddr())
 	msg.setRemoteHostPort(hop.IP, hop.Port)
+	msg.setLocalHostPort(listeningPoint.IP, listeningPoint.Port)
 
 	if stack.EventInterceptor != nil {
 		if isRequest {

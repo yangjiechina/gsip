@@ -65,7 +65,7 @@ func (t *ClientTransaction) processResponse(response *Response) {
 			}
 		}
 		if dialog, _ = t.sipStack.findDialog(id); dialog == nil {
-			dialog = createDialog(t.sipStack, t.originalRequest, response, false)
+			dialog = createDialog(t.sipStack, t.listeningPoint, t.originalRequest, response, false)
 			t.dialog = dialog
 			t.sipStack.addDialog(id, dialog)
 		}
@@ -165,7 +165,9 @@ func (t *ClientTransaction) SendRequest(onSuccess OnSuccess, onFailure OnFailure
 		panic(err)
 	}
 
-	conn, err := t.sipStack.GetListeningPoint(t.originalRequest.GetTransport()).getConn(t.hop)
+	//通讯层发送消息
+	//启动状态机
+	conn, err := t.listeningPoint.getConn(t.hop)
 	if conn != nil {
 		t.conn = conn
 		t.originalRequestBytes = t.originalRequest.ToBytes()

@@ -58,6 +58,7 @@ type Dialog struct {
 	isUAC           bool
 	state           int
 	sipStack        *Stack
+	listeningPoint  *ListeningPoint
 	routeSet        []*SipUri
 	via             *Via
 	//route set
@@ -74,7 +75,7 @@ type Dialog struct {
 //}
 //re-Invite 刷新target要修改 remoteTag
 
-func createDialog(stack *Stack, request *Request, response *Response, uas bool) *Dialog {
+func createDialog(stack *Stack, listeningPoint *ListeningPoint, request *Request, response *Response, uas bool) *Dialog {
 	var dialog *Dialog
 	cSeqHeader := request.CSeq()
 	fromHeader := request.From()
@@ -106,17 +107,12 @@ func createDialog(stack *Stack, request *Request, response *Response, uas bool) 
 
 	dialog.via = response.via
 	dialog.sipStack = stack
+	dialog.listeningPoint = listeningPoint
 	return dialog
 }
 
 func (d *Dialog) SendAck(request *Request) error {
-	for _, listen := range d.sipStack.Listens {
-		if listen.Transport == request.GetTransport() {
-			return listen.SendRequest(request)
-		}
-	}
-
-	return nil
+	return d.listeningPoint.SendRequest(request)
 }
 
 func (d *Dialog) CreateAck(cSeqNumber int) *Request {
@@ -137,15 +133,15 @@ func (d *Dialog) createRequest(method string, cSeqNumber int) *Request {
 
 	request := NewRequest()
 	request.line = requestLine
-	request.SetHeader(d.sipStack.GetListeningPoint(d.via.transport).CreateViaHeader())
+	request.SetHeader(d.listeningPoint.CreateViaHeader())
 	request.SetHeader(toHeader)
 	request.SetHeader(fromHeader)
 	request.SetHeader(&callIdHeader)
 	request.SetHeader(cSeqHeader)
 	request.SetHeader(defaultMaxForwardsHeader.Clone())
 
-	if d.sipStack.Option.UserAgent != "" {
-		agent := UserAgent(d.sipStack.Option.UserAgent)
+	if d.sipStack.Options.UserAgent != "" {
+		agent := UserAgent(d.sipStack.Options.UserAgent)
 		request.SetHeader(&agent)
 	}
 

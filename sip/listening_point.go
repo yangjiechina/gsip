@@ -124,6 +124,7 @@ func (l *ListeningPoint) NewClientTransactionWithTimeout(request *Request, reque
 			stateMachine:    stateMachine,
 			hop:             hop,
 			sipStack:        l.sipStack,
+			listeningPoint:  l,
 			responseEvent:   make(chan *ResponseEvent, 1),
 			ioError:         make(chan error, 1),
 			txTimeout:       make(chan bool, 1),

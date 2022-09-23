@@ -46,6 +46,7 @@ type transaction struct {
 	stateMachine             IStateMachine
 	transport                ITransport
 	sipStack                 *Stack
+	listeningPoint           *ListeningPoint
 	originalRequest          *Request
 	originalRequestBytes     []byte
 	provisionalResponse      *Response

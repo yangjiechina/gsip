@@ -46,6 +46,9 @@ type Device struct {
 	Port      int                 `xml:"Port" json:"port"`
 	Channels  map[string]*Channel `json:"channels"`
 
+	serverLocalIP   string
+	serverLocalPort int
+
 	subscribeMobilePositionAutoRefresher sip.AutoRefresher
 	subscribeMobilePositionDialog        *sip.Dialog
 }
@@ -97,8 +100,8 @@ func (d *Device) DoDeviceInfo() {
 
 	query := fmt.Sprintf(deviceInfoFormat, "1", d.DeviceID)
 
-	message := SipAgent.createRequestMessage(d.DeviceID, d.IP, d.Port, SipAgent.sipId, d.DeviceID, d.Transport, xmlContentType, []byte(query))
-	transaction, err := SipAgent.newClientTransaction(d.Transport, message)
+	message := SipAgent.createRequestMessage2(d.DeviceID, d.IP, d.Port, SipAgent.sipId, d.DeviceID, d, xmlContentType, []byte(query))
+	transaction, err := SipAgent.newClientTransaction2(d, message)
 	if err != nil {
 		fmt.Printf("server error msg:%s", err.Error())
 		return
@@ -119,8 +122,8 @@ func (d *Device) DoDeviceStatus() {
 
 	query := fmt.Sprintf(deviceInfoFormat, "1", d.DeviceID)
 
-	message := SipAgent.createRequestMessage(d.DeviceID, d.IP, d.Port, SipAgent.sipId, d.DeviceID, d.Transport, xmlContentType, []byte(query))
-	transaction, err := SipAgent.newClientTransaction(d.Transport, message)
+	message := SipAgent.createRequestMessage2(d.DeviceID, d.IP, d.Port, SipAgent.sipId, d.DeviceID, d, xmlContentType, []byte(query))
+	transaction, err := SipAgent.newClientTransaction2(d, message)
 	if err != nil {
 		fmt.Printf("server error msg:%s", err.Error())
 		return
@@ -141,9 +144,9 @@ func (d *Device) DoCatalog() {
 
 	msgBody := fmt.Sprintf(catalogFormat, "1", d.DeviceID)
 
-	catalogRequest := SipAgent.createRequestMessage(d.DeviceID, d.IP, d.Port, SipAgent.sipId, d.DeviceID, d.Transport, xmlContentType, []byte(msgBody))
+	catalogRequest := SipAgent.createRequestMessage2(d.DeviceID, d.IP, d.Port, SipAgent.sipId, d.DeviceID, d, xmlContentType, []byte(msgBody))
 
-	transaction, err := SipAgent.newClientTransaction(d.Transport, catalogRequest)
+	transaction, err := SipAgent.newClientTransaction2(d, catalogRequest)
 	if err != nil {
 		return
 	}
@@ -174,7 +177,7 @@ func (d *Device) OnACK(event *sip.RequestEvent) {
 		time.Sleep(10 * time.Second)
 		request, _ := event.Dialog.CreateRequest(sip.BYE)
 		event.Dialog.Delete()
-		if transaction, err := SipAgent.newClientTransaction(d.Transport, request); err == nil {
+		if transaction, err := SipAgent.newClientTransaction2(d, request); err == nil {
 			transaction.Execute()
 		}
 	}()
@@ -212,14 +215,14 @@ func (d *Device) DoLive() {
 
 	channelId := d.DeviceID[0:10] + "131" + d.DeviceID[13:]
 
-	inviteRequest := SipAgent.createEmptyRequestMessage(sip.INVITE, channelId, d.IP, d.Port, SipAgent.sipId, channelId, d.Transport)
+	inviteRequest := SipAgent.createEmptyRequestMessage2(sip.INVITE, channelId, d.IP, d.Port, SipAgent.sipId, channelId, d)
 	contentType := sip.ContentType("Application/SDP")
 	inviteRequest.SetContent(&contentType, []byte(sdp))
 	uri := sip.NewSipUri(SipAgent.sipId, SipAgent.listIP, SipAgent.listPort)
 	contact := sip.Contact{Address: sip.NewAddress(uri)}
 	inviteRequest.SetHeader(&contact)
 
-	if transaction, err := SipAgent.newClientTransaction(d.Transport, inviteRequest); err == nil {
+	if transaction, err := SipAgent.newClientTransaction2(d, inviteRequest); err == nil {
 		transaction.SendRequest(func(event *sip.ResponseEvent) {
 			code := event.Response.GetStatusCode()
 			if code < 200 {
@@ -236,7 +239,7 @@ func (d *Device) DoLive() {
 						time.Sleep(10 * time.Second)
 						request, _ := event.Dialog.CreateRequest(sip.BYE)
 						event.Dialog.Delete()
-						if transaction, err := SipAgent.newClientTransaction(d.Transport, request); err == nil {
+						if transaction, err := SipAgent.newClientTransaction2(d, request); err == nil {
 							transaction.Execute()
 						}
 					}()
@@ -274,7 +277,7 @@ func (d *Device) DoSubscribeMobilePosition() {
 		"</Query>"
 
 	content := fmt.Sprintf(contentFormat, "1", d.DeviceID, 10)
-	subscribeRequest := SipAgent.createEmptyRequestMessage(sip.SUBSCRIBE, d.DeviceID, d.IP, d.Port, SipAgent.sipId, d.DeviceID, d.Transport)
+	subscribeRequest := SipAgent.createEmptyRequestMessage2(sip.SUBSCRIBE, d.DeviceID, d.IP, d.Port, SipAgent.sipId, d.DeviceID, d)
 	contentType := sip.ContentType(xmlContentType)
 	subscribeRequest.SetContent(&contentType, []byte(content))
 	event := sip.Event{Type: "presence"}
@@ -285,7 +288,7 @@ func (d *Device) DoSubscribeMobilePosition() {
 	expires := sip.Expires(3600)
 	subscribeRequest.SetHeader(&expires)
 
-	transaction, err := SipAgent.newClientTransaction(d.Transport, subscribeRequest)
+	transaction, err := SipAgent.newClientTransaction2(d, subscribeRequest)
 	if err != nil {
 		return
 	}

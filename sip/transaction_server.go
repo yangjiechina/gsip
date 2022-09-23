@@ -29,7 +29,7 @@ func (t *ServerTransaction) SendResponse(response *Response) {
 		if response.GetStatusCode() > 100 && response.GetStatusCode() < 300 {
 			id := response.GetDialogId(true)
 			if dialog, _ = t.sipStack.findDialog(id); dialog == nil {
-				dialog = createDialog(t.sipStack, t.originalRequest, response, true)
+				dialog = createDialog(t.sipStack, t.listeningPoint, t.originalRequest, response, true)
 				t.dialog = dialog
 				t.sipStack.addDialog(id, dialog)
 			}

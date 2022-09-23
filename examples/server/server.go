@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"gsip/examples"
 	"gsip/sip"
+	"strings"
 	"time"
 )
 
@@ -19,17 +20,34 @@ type SipServer struct {
 	password string
 
 	stack *sip.Stack
-	udp   *sip.ListeningPoint
-	tcp   *sip.ListeningPoint
+
+	listeningMap map[string]*sip.ListeningPoint
+}
+
+func (m SipServer) addListeningPoint(transport, ip string, port int, point *sip.ListeningPoint) {
+	key := fmt.Sprintf("%s:%s:%d", strings.ToLower(transport), ip, port)
+	m.listeningMap[key] = point
 }
 
 func (m *SipServer) start() {
-	m.udp = &sip.ListeningPoint{IP: m.listIP, Port: m.listPort, Transport: sip.UDP}
-	m.tcp = &sip.ListeningPoint{IP: m.listIP, Port: m.listPort, Transport: sip.TCP}
-	m.stack = &sip.Stack{Listens: []*sip.ListeningPoint{m.udp, m.tcp}, EventListener: m,
-		Option: sip.Option{
+	m.listeningMap = make(map[string]*sip.ListeningPoint, 10)
+	contact := &sip.Contact{Address: sip.NewAddress(sip.NewSipUri(m.sipId, m.listIP, m.listPort))}
+	//多网卡监听
+	udp := &sip.ListeningPoint{IP: m.listIP, Port: m.listPort, Transport: sip.UDP}
+	udp2 := &sip.ListeningPoint{IP: "127.0.0.1", Port: m.listPort, Transport: sip.UDP}
+	tcp := &sip.ListeningPoint{IP: m.listIP, Port: m.listPort, Transport: sip.TCP}
+	m.addListeningPoint(sip.UDP, m.listIP, m.listPort, udp)
+	m.addListeningPoint(sip.UDP, "127.0.0.1", m.listPort, udp2)
+	m.addListeningPoint(sip.TCP, m.listIP, m.listPort, tcp)
+	for _, point := range m.listeningMap {
+		point.SetGlobalContact(contact)
+	}
+	s := &sip.Stack{Listens: []*sip.ListeningPoint{udp, udp2, tcp}, EventListener: m,
+		Options: sip.Options{
 			UserAgent: "gsip test",
 		}}
+
+	m.stack = s
 	err := m.stack.Start()
 	if err != nil {
 		panic(err)
@@ -43,28 +61,42 @@ func (m *SipServer) start() {
 	//device.DoLive()
 }
 
-func (m *SipServer) getListeningPort(transport string) *sip.ListeningPoint {
-	if sip.UDP == transport {
-		return m.udp
-	} else {
-		return m.tcp
-	}
+func (m *SipServer) getListeningPoint(transport string, localIP string, localPort int) *sip.ListeningPoint {
+	key := fmt.Sprintf("%s:%s:%d", strings.ToLower(transport), localIP, localPort)
+	return m.listeningMap[key]
 }
 
-func (m SipServer) newClientTransaction(transport string, request *sip.Request) (*sip.ClientTransaction, error) {
-	return m.getListeningPort(transport).NewClientTransaction(request)
+//func (m *SipServer) newClientTransaction(transport string, request *sip.Request) (*sip.ClientTransaction, error) {
+//	return m.stack.GetListeningPoint(transport).NewClientTransaction(request)
+//}
+
+func (m *SipServer) newClientTransaction2(d *Device, request *sip.Request) (*sip.ClientTransaction, error) {
+	return m.getListeningPoint(d.Transport, d.serverLocalIP, d.serverLocalPort).NewClientTransaction(request)
 }
 
-func (m *SipServer) createEmptyRequestMessage(method, requestUser, requestHost string, requestPort int, from, to string, transport string) *sip.Request {
+//func (m *SipServer) createEmptyRequestMessage(method, requestUser, requestHost string, requestPort int, from, to string, transport string) *sip.Request {
+//	requestUri := sip.NewSipUri(requestUser, requestHost, requestPort)
+//	fromHeader := &sip.From{Address: sip.NewAddress(sip.NewSipUri(from, from[0:10], 0))}
+//	toHeader := &sip.To{Address: sip.NewAddress(sip.NewSipUri(to, to[0:10], 0))}
+//	return m.stack.GetListeningPoint(transport).NewEmptyRequestMessage(method, requestUri, fromHeader, toHeader)
+//}
+//
+//func (m *SipServer) createRequestMessage(requestUser, requestHost string, requestPort int, from, to string, transport string, contentType string, body []byte) *sip.Request {
+//	message := m.createEmptyRequestMessage(sip.MESSAGE, requestUser, requestHost, requestPort, from, to, transport)
+//	c := sip.ContentType(contentType)
+//	message.SetContent(&c, body)
+//	return message
+//}
+
+func (m *SipServer) createEmptyRequestMessage2(method, requestUser, requestHost string, requestPort int, from, to string, device *Device) *sip.Request {
 	requestUri := sip.NewSipUri(requestUser, requestHost, requestPort)
 	fromHeader := &sip.From{Address: sip.NewAddress(sip.NewSipUri(from, from[0:10], 0))}
 	toHeader := &sip.To{Address: sip.NewAddress(sip.NewSipUri(to, to[0:10], 0))}
-	listenPort := m.getListeningPort(transport)
-	return listenPort.NewEmptyRequestMessage(method, requestUri, fromHeader, toHeader)
+	return m.getListeningPoint(device.Transport, device.serverLocalIP, device.serverLocalPort).NewEmptyRequestMessage(method, requestUri, fromHeader, toHeader)
 }
 
-func (m *SipServer) createRequestMessage(requestUser, requestHost string, requestPort int, from, to string, transport string, contentType string, body []byte) *sip.Request {
-	message := m.createEmptyRequestMessage(sip.MESSAGE, requestUser, requestHost, requestPort, from, to, transport)
+func (m *SipServer) createRequestMessage2(requestUser, requestHost string, requestPort int, from, to string, device *Device, contentType string, body []byte) *sip.Request {
+	message := m.createEmptyRequestMessage2(sip.MESSAGE, requestUser, requestHost, requestPort, from, to, device)
 	c := sip.ContentType(contentType)
 	message.SetContent(&c, body)
 	return message
@@ -101,8 +133,11 @@ func (m *SipServer) OnRegister(event *sip.RequestEvent) {
 	ip, port := request.GetRemoteHostPort()
 	fromHeader := request.From()
 	user := fromHeader.User()
+	hostPort, p := event.Request.GetLocalHostPort()
 
 	device := &Device{DeviceID: user, IP: ip, Port: port, Transport: via.Transport(), Channels: make(map[string]*Channel, 5)}
+	device.serverLocalIP = hostPort
+	device.serverLocalPort = p
 	deviceManager.Add(user, device)
 
 	device.DoDeviceStatus()
@@ -110,6 +145,7 @@ func (m *SipServer) OnRegister(event *sip.RequestEvent) {
 	device.DoCatalog()
 	device.DoLive()
 	device.DoSubscribeMobilePosition()
+
 }
 
 func (m *SipServer) OnMessage(event *sip.RequestEvent) {
