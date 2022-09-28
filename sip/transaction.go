@@ -253,10 +253,10 @@ func (i *InviteServerStateMachine) setState(state int) {
 		}
 
 		if i.isTcp {
+			i.transaction.terminated()
+		} else {
 			i.timerI = &timerI{}
 			i.timerI.start(i.transaction.terminated)
-		} else {
-			i.transaction.terminated()
 		}
 	} else if inviteServerStateTerminated == state {
 		i.stopTimer()
@@ -291,11 +291,11 @@ func (u *UnInviteServerStateMachine) setState(state int) {
 	} else if unInviteServerStateProceeding == state {
 
 	} else if unInviteServerStateCompleted == state {
-		if !u.isTcp {
+		if u.isTcp {
+			u.transaction.terminated()
+		} else {
 			u.timerJ = &timerJ{}
 			u.timerJ.start(u.transaction.terminated)
-		} else {
-			u.transaction.terminated()
 		}
 	} else if unInviteServerStateTerminated == state {
 		u.stopTimer()
